@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Meetily</string>
+    <string name="notif_channel">Ses Kaydi</string>
+    <string name="notif_recording">Toplanti kaydediliyor...</string>
+    <string name="notif_stop">Durdur</string>
+</resources>
