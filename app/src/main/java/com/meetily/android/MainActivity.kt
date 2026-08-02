@@ -14,6 +14,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -249,7 +250,7 @@ fun MetaChip(text: String, hot: Boolean = false) {
 fun fmtDur(ms: Long): String { val s = ms / 1000; return String.format("%02d:%02d", s / 60, s % 60) }
 
 @Composable
-fun HomeScreen(state: AppState) {
+fun HomeScreen(state: AppState) { val ctx = LocalContext.current
     val meetings = remember(state.processing) { state.store.list() }
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
@@ -273,7 +274,7 @@ fun HomeScreen(state: AppState) {
                 item { Spacer(Modifier.height(96.dp)) }
             }
         }
-        Box(Modifier.align(Alignment.BottomEnd).padding(20.dp).size(60.dp).clip(RoundedCornerShape(20.dp)).background(S.purple).clickable { state.startRecording(LocalContext.current) }, contentAlignment = Alignment.Center) {
+        Box(Modifier.align(Alignment.BottomEnd).padding(20.dp).size(60.dp).clip(RoundedCornerShape(20.dp)).background(S.purple).clickable { state.startRecording(ctx) }, contentAlignment = Alignment.Center) {
             Icon(Icons.Default.Mic, null, tint = S.purpleDeep, modifier = Modifier.size(28.dp))
         }
     }
