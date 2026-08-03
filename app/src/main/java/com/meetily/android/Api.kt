@@ -140,3 +140,34 @@ Eger bir alan yoksa bos birak ama JSON yapisini koru."""
     fun toJsonArray(list: List<String>): String = JSONArray().apply { list.forEach { put(it) } }.toString()
     fun toJsonArrayActions(list: List<ActionItem>): String = JSONArray().apply { list.forEach { put(it.toJson()) } }.toString()
 }
+
+object ApiTimed {
+    fun transcribe(file: File, groqKey: String, language: String = "tr"): Result<String> {
+        if (groqKey.isBlank()) return Result.failure(Exception("Groq anahtari yok."))
+        if (!file.exists() || file.length() == 0L) return Result.failure(Exception("Dosya bos."))
+        return try {
+            val body = okhttp3.MultipartBody.Builder().setType(okhttp3.MultipartBody.FORM)
+                .addFormDataPart("file", file.name, file.asRequestBody("audio/wav".toMediaTypeOrNull()))
+                .addFormDataPart("model", "whisper-large-v3-turbo")
+                .addFormDataPart("language", language)
+                .addFormDataPart("response_format", "verbose_json")
+                .build()
+            val req = okhttp3.Request.Builder().url("https://api.groq.com/openai/v1/audio/transcriptions")
+                .addHeader("Authorization", "Bearer $groqKey").post(body).build()
+            val client = okhttp3.OkHttpClient.Builder().readTimeout(180, java.util.concurrent.TimeUnit.SECONDS).build()
+            client.newCall(req).execute().use { r ->
+                if (!r.isSuccessful) return Result.failure(Exception("Whisper ${r.code}"))
+                val o = org.json.JSONObject(r.body?.string() ?: "{}")
+                val segs = o.optJSONArray("segments")
+                if (segs == null || segs.length() == 0) return Result.success(o.optString("text", ""))
+                val sb = StringBuilder()
+                for (i in 0 until segs.length()) {
+                    val s = segs.getJSONObject(i)
+                    val t = s.optDouble("start", 0.0).toInt()
+                    sb.append(String.format("[%02d:%02d] %s", t / 60, t % 60, s.optString("text", "").trim())).append("\n")
+                }
+                Result.success(sb.toString().trim())
+            }
+        } catch (e: Exception) { Result.failure(e) }
+    }
+}
