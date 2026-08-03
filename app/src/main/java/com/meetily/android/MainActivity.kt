@@ -208,7 +208,7 @@ class MainActivity : ComponentActivity() {
 fun AppRoot(state: AppState) {
     Box(modifier = Modifier.fillMaxSize().background(S.bg).statusBarsPadding()) {
         when (state.screen) {
-            "home" -> HomeScreenV3(state); "rec" -> RecordingScreen(state)
+            "home" -> HomeScreenV3(state); "rec" -> RecordingScreenV2(state)
             "detail" -> DetailScreen(state); "settings" -> SettingsScreen(state)
         }
         state.toast?.let { msg ->
@@ -618,5 +618,61 @@ fun HomeScreenV3(state: AppState) {
         Box(Modifier.align(Alignment.BottomEnd).padding(20.dp).size(60.dp).clip(RoundedCornerShape(20.dp)).background(S.purple).clickable { state.startRecording(ctx) }, contentAlignment = Alignment.Center) {
             Icon(Icons.Default.Mic, null, tint = S.purpleDeep, modifier = Modifier.size(28.dp))
         }
+    }
+}
+
+@Composable
+fun VuMeter(amp: Float) {
+    val seg = 12
+    val lit = (amp.coerceIn(0f, 1f) * seg).toInt()
+    Row(horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.CenterVertically) {
+        for (i in 0 until seg) {
+            val col = if (i < 8) S.green else if (i < 10) S.amber else S.red
+            Box(Modifier.width(6.dp).height(24.dp).clip(RoundedCornerShape(2.dp)).background(if (i < lit) col else S.panel3))
+        }
+    }
+}
+
+@Composable
+fun RecordingScreenV2(state: AppState) {
+    val svc = state.service
+    val recState = svc?.recordingState?.collectAsState()?.value ?: RecordingState.IDLE
+    val elapsed = svc?.elapsedMillis?.collectAsState()?.value ?: 0L
+    val amp = svc?.amplitude?.collectAsState()?.value ?: 0f
+    val history = remember { mutableStateListOf<Float>() }
+    LaunchedEffect(svc) { svc?.let { s -> s.amplitude.collect { a -> history.add(a); while (history.size > 48) history.removeAt(0) } } }
+    Column(Modifier.fillMaxSize()) {
+        TopBar("Aktif Kayit", "Foreground Service - mikrofon", onBack = { if (!state.processing) state.screen = "home" })
+        Row(Modifier.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+            Led(S.red, recState == RecordingState.RECORDING); Spacer(Modifier.width(8.dp))
+            Text(when (recState) { RecordingState.RECORDING -> "KAYIT"; RecordingState.PAUSED -> "DURAKLATILDI"; else -> "HAZIR" }, fontFamily = S.mono, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = S.red)
+            Spacer(Modifier.weight(1f)); Text("CH-01 MIC", fontFamily = S.mono, fontSize = 9.sp, color = S.dim)
+        }
+        Text(state.fmt(elapsed), fontFamily = S.mono, fontSize = 46.sp, fontWeight = FontWeight.SemiBold, color = S.text, modifier = Modifier.fillMaxWidth().padding(top = 18.dp), textAlign = TextAlign.Center)
+        WaveCanvas(history, amp, recState == RecordingState.RECORDING, Modifier.fillMaxWidth().height(112.dp).padding(horizontal = 12.dp))
+        Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) { LevelBar(amp) }
+            Spacer(Modifier.width(16.dp)); VuMeter(amp)
+        }
+        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            MetaChip(state.store.get(state.selectedId ?: -1)?.audioPath?.substringAfterLast("/") ?: "meeting.wav", hot = true); MetaChip("PCM 16kHz"); MetaChip("16-BIT"); MetaChip("MONO")
+        }
+        Pipeline(state)
+        if (state.processing) {
+            Box(Modifier.fillMaxWidth().padding(horizontal = 26.dp, vertical = 6.dp).height(4.dp).clip(RoundedCornerShape(99.dp)).background(S.panel3)) {
+                Box(Modifier.fillMaxWidth(state.procProgress).height(4.dp).clip(RoundedCornerShape(99.dp)).background(S.purple))
+            }
+            Text(state.procStep, fontFamily = S.mono, fontSize = 9.5.sp, color = S.purple, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+        }
+        Spacer(Modifier.weight(1f))
+        if (!state.processing) {
+            Row(Modifier.fillMaxWidth().padding(bottom = 30.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(56.dp).clip(CircleShape).background(S.panel3).border(1.dp, S.line2, CircleShape).clickable { state.pauseResume() }, contentAlignment = Alignment.Center) {
+                    Icon(if (recState == RecordingState.PAUSED) Icons.Default.PlayArrow else Icons.Default.Pause, null, tint = S.text, modifier = Modifier.size(22.dp))
+                }
+                Spacer(Modifier.width(30.dp))
+                Box(Modifier.size(78.dp).clip(CircleShape).background(S.red).clickable { state.stopRecording() }, contentAlignment = Alignment.Center) { Icon(Icons.Default.Stop, null, tint = Color.White, modifier = Modifier.size(30.dp)) }
+            }
+        } else Spacer(Modifier.height(30.dp))
     }
 }
