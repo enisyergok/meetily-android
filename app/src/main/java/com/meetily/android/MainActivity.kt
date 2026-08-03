@@ -222,7 +222,7 @@ fun AppRoot(state: AppState) {
     Box(modifier = Modifier.fillMaxSize().background(S.bg).statusBarsPadding().navigationBarsPadding()) {
         when (state.screen) {
             "home" -> HomeScreenV3(state); "rec" -> RecordingScreenV2(state)
-            "detail" -> DetailScreenV3(state); "settings" -> SettingsScreen(state)
+            "detail" -> DetailScreenV2(state); "settings" -> SettingsScreen(state)
         }
         state.toast?.let { msg ->
             LaunchedEffect(msg) { delay(2200); state.toast = null }
@@ -882,77 +882,6 @@ fun RecordingScreenV5(state: AppState) {
                 Box(Modifier.size(78.dp).clip(CircleShape).background(S.red).clickable { vibrate(ctx, 120); state.stopRecording() }, contentAlignment = Alignment.Center) { Icon(Icons.Default.Stop, null, tint = Color.White, modifier = Modifier.size(30.dp)) }
             }
         } else Spacer(Modifier.height(30.dp))
-    }
-}
-
-@Composable
-fun DetailScreenV3(state: AppState) {
-    val m = remember(state.selectedId, state.processing) { state.store.get(state.selectedId ?: -1) }
-    val clipboard = LocalClipboardManager.current; val ctx = LocalContext.current
-    var query by remember { mutableStateOf("") }; var input by remember { mutableStateOf("") }
-    var player by remember { mutableStateOf<MediaPlayer?>(null) }
-    var playing by remember { mutableStateOf(false) }
-    var pos by remember { mutableStateOf(0f) }
-    DisposableEffect(Unit) { onDispose { runCatching { player?.release() }; player = null } }
-    LaunchedEffect(playing) { while (playing) { player?.let { pos = it.currentPosition.toFloat() }; delay(200) } }
-    if (m == null) { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Toplanti bulunamadi", color = S.muted) }; return }
-    val mm = m; val dur = mm.durationMs.coerceAtLeast(1).toFloat()
-    Column(Modifier.fillMaxSize()) {
-        TopBar(mm.title, onBack = { runCatching { player?.release() }; state.screen = "home" }, trailing = {
-            Box(Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).clickable { clipboard.setText(AnnotatedString(mm.summary.ifBlank { mm.transcript })); state.toast = "Panoya kopyalandi" }, contentAlignment = Alignment.Center) { Icon(Icons.Default.ContentCopy, null, tint = S.muted, modifier = Modifier.size(18.dp)) }
-            Spacer(Modifier.width(2.dp))
-            Box(Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).clickable {
-                try {
-                    val uri = FileProvider.getUriForFile(ctx, ctx.packageName + ".fileprovider", File(mm.audioPath))
-                    val i = Intent(Intent.ACTION_SEND).apply { type = "audio/wav"; putExtra(Intent.EXTRA_STREAM, uri); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }
-                    ctx.startActivity(Intent.createChooser(i, "Sesi paylas"))
-                } catch (e: Exception) { state.toast = "Paylasim hatasi: ${e.message}" }
-            }, contentAlignment = Alignment.Center) { Icon(Icons.Default.Share, null, tint = S.muted, modifier = Modifier.size(18.dp)) }
-        })
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) { MetaChip("S " + fmtDur(mm.durationMs)); MetaChip(fmtBytes(File(mm.audioPath).length())); MetaChip("16000Hz"); MetaChip("nvidia") }
-            Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp).clip(RoundedCornerShape(14.dp)).background(S.panel).border(1.dp, S.line, RoundedCornerShape(14.dp)).padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(40.dp).clip(CircleShape).background(S.purple).clickable {
-                    try { if (player == null) player = MediaPlayer().apply { setDataSource(mm.audioPath); prepare() }; if (playing) { player?.pause(); playing = false } else { player?.start(); playing = true } } catch (e: Exception) { state.toast = "Oynatma hatasi: ${e.message}" }
-                }, contentAlignment = Alignment.Center) { Icon(if (playing) Icons.Default.Pause else Icons.Default.PlayArrow, null, tint = S.purpleDeep, modifier = Modifier.size(20.dp)) }
-                Spacer(Modifier.width(10.dp))
-                Slider(value = pos.coerceIn(0f, dur), onValueChange = { pos = it; player?.seekTo(it.toInt()) }, valueRange = 0f..dur, modifier = Modifier.weight(1f))
-                Spacer(Modifier.width(8.dp)); Text(fmtDur(pos.toLong()) + "/" + fmtDur(mm.durationMs), fontFamily = S.mono, fontSize = 8.5.sp, color = S.muted)
-            }
-            if (mm.summary.isNotBlank()) Section("AI OZET", S.purple, S.purpleDeep) {
-                Text(mm.summary, fontSize = 12.sp, lineHeight = 20.sp, color = Color(0xFFC9C3D4))
-                if (mm.topics().isNotEmpty()) { Spacer(Modifier.height(12.dp)); Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) { mm.topics().forEach { Text(it, fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = S.purple, modifier = Modifier.clip(RoundedCornerShape(99.dp)).background(S.purple.copy(alpha = 0.12f)).border(1.dp, S.purple.copy(alpha = 0.2f), RoundedCornerShape(99.dp)).padding(horizontal = 11.dp, vertical = 5.dp)) } } }
-            }
-            Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp).clip(RoundedCornerShape(13.dp)).background(S.panel).border(1.dp, S.line, RoundedCornerShape(13.dp)).padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Search, null, tint = S.dim, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(10.dp))
-                BasicTextField(value = query, onValueChange = { query = it }, singleLine = true, textStyle = TextStyle(color = S.text, fontSize = 12.sp), modifier = Modifier.weight(1f), decorationBox = { inner -> if (query.isEmpty()) Text("Transkriptte ara...", color = S.dim, fontSize = 12.sp); inner() })
-            }
-            Text("TRANSKRİPT (ZAMAN DAMGALI)", fontFamily = S.mono, fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = S.purple, modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp))
-            if (mm.transcript.isBlank()) Text("Transkript yok. Ayarlardan Groq anahtari ekleyip tekrar kaydet.", color = S.dim, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 18.dp))
-            else mm.transcript.split("\n").filter { it.isNotBlank() }.forEach { line ->
-                Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 4.dp)) {
-                    Text(highlight(line, query), fontSize = 11.sp, lineHeight = 18.sp, color = Color(0xFFB7B1C2), modifier = Modifier.weight(1f))
-                }
-            }
-            Spacer(Modifier.height(16.dp))
-            Text("AI'YA SOR", fontFamily = S.mono, fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = S.purple, modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp))
-            state.chat.forEach { (u, t) ->
-                Box(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 4.dp), contentAlignment = if (u) Alignment.CenterEnd else Alignment.CenterStart) {
-                    Column(Modifier.widthIn(max = 300.dp).clip(RoundedCornerShape(14.dp)).background(if (u) S.purpleDeep else S.panel2).border(if (u) 0.dp else 1.dp, S.line, RoundedCornerShape(14.dp)).padding(12.dp)) {
-                        Text(if (u) "SEN" else "MEETILY AI", fontFamily = S.mono, fontSize = 8.sp, fontWeight = FontWeight.Bold, color = if (u) S.purple else S.blue); Spacer(Modifier.height(4.dp)); Text(t, fontSize = 11.sp, lineHeight = 17.sp, color = S.text)
-                    }
-                }
-            }
-            Spacer(Modifier.height(8.dp))
-            Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(value = input, onValueChange = { input = it }, singleLine = true, placeholder = { Text("Soru sorun...", color = S.dim, fontSize = 12.sp) }, colors = tfColors(), modifier = Modifier.weight(1f), textStyle = TextStyle(color = S.text, fontSize = 12.sp))
-                Spacer(Modifier.width(9.dp))
-                Box(Modifier.size(44.dp).clip(CircleShape).background(S.purple).clickable {
-                    val q = input.trim(); if (q.isBlank()) return@clickable; input = ""; state.chat.add(true to q)
-                    state.scope.launch { val r = withContext(Dispatchers.IO) { Api.ask(q, mm.transcript, state.store.nvidiaModel()) }; state.chat.add(false to r.fold(onSuccess = { it }, onFailure = { "Hata: ${it.message}" })) }
-                }, contentAlignment = Alignment.Center) { Icon(Icons.AutoMirrored.Filled.Send, null, tint = S.purpleDeep, modifier = Modifier.size(18.dp)) }
-            }
-        }
     }
 }
 
