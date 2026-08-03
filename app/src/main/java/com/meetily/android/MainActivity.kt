@@ -54,7 +54,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Surface
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
@@ -206,7 +208,7 @@ class MainActivity : ComponentActivity() {
 fun AppRoot(state: AppState) {
     Box(modifier = Modifier.fillMaxSize().background(S.bg).statusBarsPadding()) {
         when (state.screen) {
-            "home" -> HomeScreenV2(state); "rec" -> RecordingScreen(state)
+            "home" -> HomeScreenV3(state); "rec" -> RecordingScreen(state)
             "detail" -> DetailScreen(state); "settings" -> SettingsScreen(state)
         }
         state.toast?.let { msg ->
@@ -551,6 +553,62 @@ fun HomeScreenV2(state: AppState) {
                 }
                 items(shown, key = { it.id }) { m ->
                     MeetingCard(m, onClick = { state.selectedId = m.id; state.screen = "detail" }, onDelete = { state.store.delete(m.id) })
+                    Spacer(Modifier.height(11.dp))
+                }
+                item { Spacer(Modifier.height(96.dp)) }
+            }
+        }
+        Box(Modifier.align(Alignment.BottomEnd).padding(20.dp).size(60.dp).clip(RoundedCornerShape(20.dp)).background(S.purple).clickable { state.startRecording(ctx) }, contentAlignment = Alignment.Center) {
+            Icon(Icons.Default.Mic, null, tint = S.purpleDeep, modifier = Modifier.size(28.dp))
+        }
+    }
+}
+
+@Composable
+fun HomeScreenV3(state: AppState) {
+    val meetings = remember(state.processing) { state.store.list() }
+    var q by remember { mutableStateOf("") }
+    var deleteTarget by remember { mutableStateOf<Meeting?>(null) }
+    val ctx = LocalContext.current
+    val shown = if (q.isBlank()) meetings else meetings.filter { it.title.contains(q, true) }
+    val totalMs = meetings.sumOf { it.durationMs }
+    val totalBytes = meetings.sumOf { File(it.audioPath).length() }
+
+    deleteTarget?.let { m ->
+        AlertDialog(
+            onDismissRequest = { deleteTarget = null },
+            title = { Text("Toplantıyı sil", fontWeight = FontWeight.Bold) },
+            text = { Text(""""${m.title}" kalıcı olarak silinsin mi? Ses dosyası dahil tüm veriler gider.`) },
+            confirmButton = { TextButton(onClick = { state.store.delete(m.id); deleteTarget = null }) { Text("Sil", color = S.red, fontWeight = FontWeight.Bold) } },
+            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("Vazgeç", color = S.muted) } }
+        )
+    }
+
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize()) {
+            TopBar("Meetily", "Gizlilik odakli toplanti asistani", trailing = {
+                Box(Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).clickable { state.screen = "settings" }, contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.Settings, null, tint = S.muted, modifier = Modifier.size(20.dp))
+                }
+            })
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                StatTile(meetings.size.toString(), "TOPLANTI", S.purple, Modifier.weight(1f))
+                StatTile(fmtTotal(totalMs), "SURE", S.amber, Modifier.weight(1f))
+                StatTile(fmtBytes(totalBytes), "DEPO", S.green, Modifier.weight(1f))
+            }
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp).clip(RoundedCornerShape(13.dp)).background(S.panel).border(1.dp, S.line, RoundedCornerShape(13.dp)).padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Search, null, tint = S.dim, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(10.dp))
+                BasicTextField(value = q, onValueChange = { q = it }, singleLine = true, textStyle = TextStyle(color = S.text, fontSize = 12.sp), modifier = Modifier.weight(1f), decorationBox = { inner -> if (q.isEmpty()) Text("Toplantilarda ara...", color = S.dim, fontSize = 12.sp); inner() })
+            }
+            LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp).padding(top = 10.dp)) {
+                if (shown.isEmpty()) item {
+                    Column(Modifier.fillMaxWidth().padding(top = 60.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.Mic, null, tint = S.dim, modifier = Modifier.size(64.dp)); Spacer(Modifier.height(14.dp))
+                        Text(if (q.isBlank()) "Henuz toplanti yok" else "Sonuc bulunamadi", color = S.muted, fontSize = 14.sp)
+                    }
+                }
+                items(shown, key = { it.id }) { m ->
+                    MeetingCard(m, onClick = { state.selectedId = m.id; state.screen = "detail" }, onDelete = { deleteTarget = m })
                     Spacer(Modifier.height(11.dp))
                 }
                 item { Spacer(Modifier.height(96.dp)) }
