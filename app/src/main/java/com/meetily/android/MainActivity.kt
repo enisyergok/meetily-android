@@ -574,11 +574,12 @@ fun HomeScreenV3(state: AppState) {
     val totalMs = meetings.sumOf { it.durationMs }
     val totalBytes = meetings.sumOf { File(it.audioPath).length() }
 
-    deleteTarget?.let { m ->
+    val m = deleteTarget
+    if (m != null) {
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
             title = { Text("Toplantıyı sil", fontWeight = FontWeight.Bold) },
-            text = { Text(""""${m.title}" kalıcı olarak silinsin mi? Ses dosyası dahil tüm veriler gider.`) },
+            text = { Text(m.title + " kalici olarak silinsin mi? Ses dosyasi ve ozet silinecek.") },
             confirmButton = { TextButton(onClick = { state.store.delete(m.id); deleteTarget = null }) { Text("Sil", color = S.red, fontWeight = FontWeight.Bold) } },
             dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("Vazgeç", color = S.muted) } }
         )
