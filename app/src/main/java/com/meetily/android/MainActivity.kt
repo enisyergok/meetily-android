@@ -130,6 +130,7 @@ class AppState(val store: Store, val scope: CoroutineScope) {
     var procProgress by mutableStateOf(0f)
     var toast by mutableStateOf<String?>(null)
     var aiTest by mutableStateOf<String?>(null)
+    var listVersion by mutableStateOf(0)
     val chat = mutableStateListOf<Pair<Boolean, String>>()
 
     fun fmt(ms: Long): String {
@@ -267,7 +268,7 @@ fun fmtDur(ms: Long): String { val s = ms / 1000; return String.format("%02d:%02
 
 @Composable
 fun HomeScreen(state: AppState) { val ctx = LocalContext.current
-    val meetings = remember(state.processing) { state.store.list() }
+    val meetings = remember(state.processing, state.listVersion) { state.store.list() }
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             TopBar("Meetily", "Gizlilik odakli toplanti asistani", trailing = {
@@ -535,7 +536,7 @@ fun StatTile(value: String, label: String, color: Color, modifier: Modifier = Mo
 
 @Composable
 fun HomeScreenV2(state: AppState) {
-    val meetings = remember(state.processing) { state.store.list() }
+    val meetings = remember(state.processing, state.listVersion) { state.store.list() }
     var q by remember { mutableStateOf("") }
     val ctx = LocalContext.current
     val shown = if (q.isBlank()) meetings else meetings.filter { it.title.contains(q, true) }
@@ -579,7 +580,7 @@ fun HomeScreenV2(state: AppState) {
 
 @Composable
 fun HomeScreenV3(state: AppState) {
-    val meetings = remember(state.processing) { state.store.list() }
+    val meetings = remember(state.processing, state.listVersion) { state.store.list() }
     var q by remember { mutableStateOf("") }
     var deleteTarget by remember { mutableStateOf<Meeting?>(null) }
     val ctx = LocalContext.current
@@ -593,7 +594,7 @@ fun HomeScreenV3(state: AppState) {
             onDismissRequest = { deleteTarget = null },
             title = { Text("Toplantıyı sil", fontWeight = FontWeight.Bold) },
             text = { Text(m.title + " kalici olarak silinsin mi? Ses dosyasi ve ozet silinecek.") },
-            confirmButton = { TextButton(onClick = { state.store.delete(m.id); deleteTarget = null }) { Text("Sil", color = S.red, fontWeight = FontWeight.Bold) } },
+            confirmButton = { TextButton(onClick = { state.store.delete(m.id); state.listVersion++; deleteTarget = null }) { Text("Sil", color = S.red, fontWeight = FontWeight.Bold) } },
             dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("Vazgeç", color = S.muted) } }
         )
     }
