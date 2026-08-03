@@ -162,7 +162,7 @@ class AppState(val store: Store, val scope: CoroutineScope) {
                 val key = store.groqKey()
                 procStep = if (key.isBlank()) "Groq anahtari yok - transkript atlanıyor" else "Whisper ile transkript"
                 procProgress = 0.3f
-                val tr = if (file != null && key.isNotBlank()) ApiTimed.transcribe(file, key).getOrNull().orEmpty() else ""
+                val tr = if (file != null && key.isNotBlank()) ApiDiar.transcribe(file, key).getOrNull().orEmpty() else ""
                 store.update(id) { it.transcript = tr; it.status = Meeting.STATUS_SUMMARIZING }
                 procStep = "NVIDIA ile ozet"; procProgress = 0.6f
                 if (tr.isNotBlank()) {

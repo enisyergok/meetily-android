@@ -172,3 +172,37 @@ object ApiTimed {
     }
 }
 
+
+object ApiDiar {
+    fun transcribe(file: File, groqKey: String, language: String = "tr"): Result<String> {
+        if (groqKey.isBlank()) return Result.failure(Exception("Groq anahtari yok."))
+        if (!file.exists() || file.length() == 0L) return Result.failure(Exception("Dosya bos."))
+        return try {
+            val body = okhttp3.MultipartBody.Builder().setType(okhttp3.MultipartBody.FORM)
+                .addFormDataPart("file", file.name, file.asRequestBody("audio/wav".toMediaTypeOrNull()))
+                .addFormDataPart("model", "whisper-large-v3")
+                .addFormDataPart("language", language)
+                .addFormDataPart("temperature", "0")
+                .addFormDataPart("response_format", "verbose_json")
+                .build()
+            val req = okhttp3.Request.Builder().url("https://api.groq.com/openai/v1/audio/transcriptions")
+                .addHeader("Authorization", "Bearer $groqKey").post(body).build()
+            val c = okhttp3.OkHttpClient.Builder().readTimeout(180, java.util.concurrent.TimeUnit.SECONDS).build()
+            c.newCall(req).execute().use { r ->
+                if (!r.isSuccessful) return Result.failure(Exception("Whisper ${r.code}"))
+                val o = org.json.JSONObject(r.body?.string() ?: "{}")
+                val segs = o.optJSONArray("segments")
+                if (segs == null || segs.length() == 0) return Result.success(o.optString("text", ""))
+                val ranges = (0 until segs.length()).map { i -> segs.getJSONObject(i).optDouble("start", 0.0) to segs.getJSONObject(i).optDouble("end", 0.0) }
+                val spk = Diarizer.speakersFor(file, ranges)
+                val sb = StringBuilder()
+                for (i in 0 until segs.length()) {
+                    val s = segs.getJSONObject(i)
+                    val t = s.optDouble("start", 0.0).toInt()
+                    sb.append(String.format("[%02d:%02d] K%d: %s", t / 60, t % 60, spk[i] + 1, s.optString("text", "").trim())).append("\n")
+                }
+                Result.success(sb.toString().trim())
+            }
+        } catch (e: Exception) { Result.failure(e) }
+    }
+}
