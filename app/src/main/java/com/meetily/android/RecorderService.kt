@@ -103,6 +103,7 @@ class RecorderService : Service() {
         outputStream?.write(ByteArray(44))
 
         audioRecord?.startRecording()
+        runCatching { val sid = audioRecord!!.audioSessionId; if (android.media.audiofx.NoiseSuppressor.isAvailable()) android.media.audiofx.NoiseSuppressor.create(sid)?.setEnabled(true); if (android.media.audiofx.AcousticEchoCanceler.isAvailable()) android.media.audiofx.AcousticEchoCanceler.create(sid)?.setEnabled(true); if (android.media.audiofx.AutomaticGainControl.isAvailable()) android.media.audiofx.AutomaticGainControl.create(sid)?.setEnabled(true) }
         isRecordingAtomic.set(true)
         isPausedAtomic.set(false)
         startTimeMillis = SystemClock.elapsedRealtime()
