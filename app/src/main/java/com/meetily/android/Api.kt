@@ -48,7 +48,7 @@ object Api {
                 .addFormDataPart("file", file.name, file.asRequestBody("audio/wav".toMediaTypeOrNull()))
                 .addFormDataPart("model", "whisper-large-v3")
                 .addFormDataPart("language", language)
-                .addFormDataPart("response_format", "json").addFormDataPart("temperature", "0")
+                .addFormDataPart("response_format", "json").addFormDataPart("temperature", "0").addFormDataPart("temperature", "0")
                 .build()
             val req = Request.Builder()
                 .url(GROQ_TRANSCRIBE_URL)
