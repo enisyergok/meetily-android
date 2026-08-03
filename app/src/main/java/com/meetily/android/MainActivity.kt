@@ -85,6 +85,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
@@ -223,7 +224,8 @@ fun AppRoot(state: AppState) {
     Box(modifier = Modifier.fillMaxSize().background(S.bg).statusBarsPadding().navigationBarsPadding()) {
         when (state.screen) {
             "home" -> HomeScreenV3(state); "rec" -> RecordingScreenV2(state)
-            "detail" -> DetailScreenV2(state); "settings" -> SettingsScreen(state)
+            "detail" -> DetailWithMap(state); "settings" -> SettingsScreen(state)
+            "map" -> MapScreen(state)
         }
         state.toast?.let { msg ->
             LaunchedEffect(msg) { delay(2200); state.toast = null }
@@ -886,3 +888,60 @@ fun RecordingScreenV5(state: AppState) {
     }
 }
 
+
+fun trunc(s: String, n: Int) = if (s.length <= n) s else s.substring(0, n - 1) + "."
+
+@Composable
+fun MindMapView(m: Meeting) {
+    Canvas(Modifier.fillMaxWidth().height(420.dp)) {
+        val dens = drawContext.density
+        val w = size.width; val h = size.height; val cx = w / 2; val cy = h / 2
+        val r1 = Math.min(w, h) * 0.28f; val r2 = Math.min(w, h) * 0.45f
+        val topics = m.topics(); val acts = m.actions().take(6); val decs = m.decisions().take(4)
+        drawCircle(S.purple, 18 * dens, Offset(cx, cy))
+        val cp = android.graphics.Paint().apply { isAntiAlias = true; color = S.purpleDeep.toArgb(); textSize = 11 * dens; textAlign = android.graphics.Paint.Align.CENTER; typeface = android.graphics.Typeface.DEFAULT_BOLD }
+        drawContext.canvas.nativeCanvas.drawText(trunc(m.title, 14), cx, cy + 4 * dens, cp)
+        topics.forEachIndexed { i, t ->
+            val a = (2.0 * Math.PI * i / maxOf(topics.size, 1) - Math.PI / 2)
+            val x = cx + r1 * Math.cos(a).toFloat(); val y = cy + r1 * Math.sin(a).toFloat()
+            drawLine(S.purple, Offset(cx, cy), Offset(x, y), strokeWidth = 2.5f)
+            drawCircle(S.purple, 3 * dens, Offset(x, y))
+            val p = android.graphics.Paint().apply { isAntiAlias = true; color = S.purple.toArgb(); textSize = 10 * dens; textAlign = android.graphics.Paint.Align.CENTER }
+            drawContext.canvas.nativeCanvas.drawText(trunc(t, 16), x, y - 5 * dens, p)
+        }
+        val leaves = acts.map { it.task to S.amber } + decs.map { it to S.green }
+        leaves.forEachIndexed { i, pair ->
+            val txt = pair.first; val col = pair.second
+            val a = (2.0 * Math.PI * i / maxOf(leaves.size, 1) - Math.PI / 2 + 0.35)
+            val x = cx + r2 * Math.cos(a).toFloat(); val y = cy + r2 * Math.sin(a).toFloat()
+            drawLine(col.copy(alpha = 0.5f), Offset(cx, cy), Offset(x, y), strokeWidth = 1.5f)
+            drawCircle(col, 2 * dens, Offset(x, y))
+            val p = android.graphics.Paint().apply { isAntiAlias = true; color = col.toArgb(); textSize = 9 * dens; textAlign = android.graphics.Paint.Align.CENTER }
+            drawContext.canvas.nativeCanvas.drawText(trunc(txt, 18), x, y + 6 * dens, p)
+        }
+    }
+}
+
+@Composable
+fun MapScreen(state: AppState) {
+    val m = remember(state.selectedId, state.processing) { state.store.get(state.selectedId ?: -1) }
+    Column(Modifier.fillMaxSize()) {
+        TopBar("Zihin Haritasi", m?.title, onBack = { state.screen = "detail" })
+        if (m == null) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Veri yok", color = S.muted) }
+        else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+            MindMapView(m)
+            Text("MERKEZ: toplanti  ·  MOR: konular  ·  AMBER: aksiyon  ·  YESIL: karar", fontFamily = S.mono, fontSize = 8.5.sp, color = S.dim, modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp), textAlign = TextAlign.Center)
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+fun DetailWithMap(state: AppState) {
+    Box(Modifier.fillMaxSize()) {
+        DetailScreenV2(state)
+        Box(Modifier.align(Alignment.BottomEnd).padding(16.dp).clip(RoundedCornerShape(99.dp)).background(S.amber).clickable { state.screen = "map" }.padding(horizontal = 16.dp, vertical = 10.dp)) {
+            Text("HARITA", fontFamily = S.mono, fontWeight = FontWeight.Bold, fontSize = 10.sp, color = S.bg)
+        }
+    }
+}
