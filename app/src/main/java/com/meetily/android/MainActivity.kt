@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
-import android.media.MediaPlayer
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
@@ -14,8 +13,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -51,18 +50,14 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -91,7 +86,6 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
@@ -255,37 +249,10 @@ fun MetaChip(text: String, hot: Boolean = false) {
 }
 
 fun fmtDur(ms: Long): String { val s = ms / 1000; return String.format("%02d:%02d", s / 60, s % 60) }
-fun fmtBytes(b: Long): String = if (b < 1048576) (b / 1024).toString() + " KB" else String.format("%.1f MB", b / 1048576.0)
-fun fmtTotal(ms: Long): String { val m = ms / 60000; return if (m < 60) m.toString() + " dk" else (m / 60).toString() + " s " + (m % 60) + " dk" }
 
 @Composable
-fun StatTile(value: String, label: String, color: Color) {
-    Column(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(S.panel).border(1.dp, S.line, RoundedCornerShape(14.dp)).padding(12.dp)) {
-        Text(value, fontFamily = S.mono, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = color)
-        Spacer(Modifier.height(3.dp)); Text(label, fontSize = 9.sp, color = S.muted)
-    }
-}
-
-@Composable
-fun HomeScreen(state: AppState) {
+fun HomeScreen(state: AppState) { val ctx = LocalContext.current
     val meetings = remember(state.processing) { state.store.list() }
-    var q by remember { mutableStateOf("") }
-    var deleteTarget by remember { mutableStateOf<Meeting?>(null) }
-    val ctx = LocalContext.current
-    val shown = if (q.isBlank()) meetings else meetings.filter { it.title.contains(q, true) }
-    val totalMs = meetings.sumOf { it.durationMs }
-    val totalBytes = meetings.sumOf { File(it.audioPath).length() }
-
-    deleteTarget?.let { m ->
-        AlertDialog(
-            onDismissRequest = { deleteTarget = null },
-            title = { Text("Toplantıyı sil", fontWeight = FontWeight.Bold) },
-            text = { Text(""""${m.title}" kalıcı olarak silinsin mi? Ses dosyası dahil tüm veriler gider.`) },
-            confirmButton = { TextButton(onClick = { state.store.delete(m.id); deleteTarget = null }) { Text("Sil", color = S.red, fontWeight = FontWeight.Bold) } },
-            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("Vazgeç", color = S.muted) } }
-        )
-    }
-
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             TopBar("Meetily", "Gizlilik odakli toplanti asistani", trailing = {
@@ -293,25 +260,16 @@ fun HomeScreen(state: AppState) {
                     Icon(Icons.Default.Settings, null, tint = S.muted, modifier = Modifier.size(20.dp))
                 }
             })
-            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                StatTile(meetings.size.toString(), "TOPLANTI", S.purple)
-                StatTile(fmtTotal(totalMs), "SURE", S.amber)
-                StatTile(fmtBytes(totalBytes), "DEPO", S.green)
-            }
-            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).clip(RoundedCornerShape(13.dp)).background(S.panel).border(1.dp, S.line, RoundedCornerShape(13.dp)).padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Search, null, tint = S.dim, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(10.dp))
-                BasicTextField(value = q, onValueChange = { q = it }, singleLine = true, textStyle = TextStyle(color = S.text, fontSize = 12.sp), modifier = Modifier.weight(1f), decorationBox = { inner -> if (q.isEmpty()) Text("Toplantilarda ara...", color = S.dim, fontSize = 12.sp); inner() })
-            }
-            LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp).padding(top = 10.dp)) {
-                if (shown.isEmpty()) item {
-                    Column(Modifier.fillMaxWidth().padding(top = 60.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            LazyColumn(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+                if (meetings.isEmpty()) item {
+                    Column(Modifier.fillMaxWidth().padding(top = 80.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(Icons.Default.Mic, null, tint = S.dim, modifier = Modifier.size(64.dp)); Spacer(Modifier.height(14.dp))
-                        Text(if (q.isBlank()) "Henuz toplanti yok" else "Sonuc bulunamadi", color = S.muted, fontSize = 14.sp)
-                        Text(if (q.isBlank()) "Baslatmak icin sag alttaki mikrofona dokun" else "Farkli bir arama dene", color = S.dim, fontSize = 11.sp)
+                        Text("Henuz toplanti yok", color = S.muted, fontSize = 14.sp)
+                        Text("Baslatmak icin sag alttaki mikrofona dokun", color = S.dim, fontSize = 11.sp)
                     }
                 }
-                items(shown, key = { it.id }) { m ->
-                    MeetingCard(m, onClick = { state.selectedId = m.id; state.screen = "detail" }, onDelete = { deleteTarget = m })
+                items(meetings, key = { it.id }) { m ->
+                    MeetingCard(m, onClick = { state.selectedId = m.id; state.screen = "detail" }, onDelete = { state.store.delete(m.id) })
                     Spacer(Modifier.height(11.dp))
                 }
                 item { Spacer(Modifier.height(96.dp)) }
@@ -349,17 +307,6 @@ fun WaveThumb(color: Color) {
 }
 
 @Composable
-fun VuMeter(amp: Float) {
-    val seg = 12; val lit = (amp.coerceIn(0f, 1f) * seg).toInt()
-    Row(horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.CenterVertically) {
-        for (i in 0 until seg) {
-            val col = if (i < 8) S.green else if (i < 10) S.amber else S.red
-            Box(Modifier.width(6.dp).height(24.dp).clip(RoundedCornerShape(2.dp)).background(if (i < lit) col else S.panel3))
-        }
-    }
-}
-
-@Composable
 fun RecordingScreen(state: AppState) {
     val svc = state.service
     val recState = svc?.recordingState?.collectAsState()?.value ?: RecordingState.IDLE
@@ -376,14 +323,10 @@ fun RecordingScreen(state: AppState) {
         }
         Text(state.fmt(elapsed), fontFamily = S.mono, fontSize = 46.sp, fontWeight = FontWeight.SemiBold, color = S.text, modifier = Modifier.fillMaxWidth().padding(top = 18.dp), textAlign = TextAlign.Center)
         WaveCanvas(history, amp, recState == RecordingState.RECORDING, Modifier.fillMaxWidth().height(112.dp).padding(horizontal = 12.dp))
-        Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) { LevelBar(amp) }
-            Spacer(Modifier.width(16.dp)); VuMeter(amp)
-        }
-        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             MetaChip(state.store.get(state.selectedId ?: -1)?.audioPath?.substringAfterLast("/") ?: "meeting.wav", hot = true); MetaChip("PCM 16kHz"); MetaChip("16-BIT"); MetaChip("MONO")
         }
-        Pipeline(state)
+        LevelBar(amp); Pipeline(state)
         if (state.processing) {
             Box(Modifier.fillMaxWidth().padding(horizontal = 26.dp, vertical = 6.dp).height(4.dp).clip(RoundedCornerShape(99.dp)).background(S.panel3)) {
                 Box(Modifier.fillMaxWidth(state.procProgress).height(4.dp).clip(RoundedCornerShape(99.dp)).background(S.purple))
@@ -405,10 +348,9 @@ fun RecordingScreen(state: AppState) {
 
 @Composable
 fun LevelBar(amp: Float) {
-    Column {
-        Text("SEVIYE", fontFamily = S.mono, fontSize = 8.5.sp, color = S.dim)
-        Spacer(Modifier.height(4.dp))
-        Box(Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(99.dp)).background(S.panel3)) { Box(Modifier.fillMaxWidth(amp.coerceIn(0f, 1f)).height(5.dp).clip(RoundedCornerShape(99.dp)).background(S.purple)) }
+    Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("SEVIYE", fontFamily = S.mono, fontSize = 8.5.sp, color = S.dim, modifier = Modifier.width(48.dp))
+        Box(Modifier.weight(1f).height(5.dp).clip(RoundedCornerShape(99.dp)).background(S.panel3)) { Box(Modifier.fillMaxWidth(amp.coerceIn(0f, 1f)).height(5.dp).clip(RoundedCornerShape(99.dp)).background(S.purple)) }
     }
 }
 
@@ -448,46 +390,22 @@ fun DetailScreen(state: AppState) {
     val m = remember(state.selectedId, state.processing) { state.store.get(state.selectedId ?: -1) }
     val clipboard = LocalClipboardManager.current; val ctx = LocalContext.current
     var query by remember { mutableStateOf("") }; var input by remember { mutableStateOf("") }
-    var player by remember { mutableStateOf<MediaPlayer?>(null) }
-    var playing by remember { mutableStateOf(false) }
-    var pos by remember { mutableStateOf(0f) }
-    DisposableEffect(Unit) { onDispose { runCatching { player?.release() }; player = null } }
-    LaunchedEffect(playing) { while (playing) { player?.let { pos = it.currentPosition.toFloat() }; delay(200) } }
     if (m == null) { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Toplanti bulunamadi", color = S.muted) }; return }
-    val mm = m; val dur = mm.durationMs.coerceAtLeast(1).toFloat()
-
     Column(Modifier.fillMaxSize()) {
-        TopBar(mm.title, onBack = { runCatching { player?.release() }; state.screen = "home" }, trailing = {
-            Box(Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).clickable { clipboard.setText(AnnotatedString(mm.summary.ifBlank { mm.transcript })); state.toast = "Panoya kopyalandi" }, contentAlignment = Alignment.Center) { Icon(Icons.Default.ContentCopy, null, tint = S.muted, modifier = Modifier.size(18.dp)) }
+        TopBar(m.title, onBack = { state.screen = "home" }, trailing = {
+            Box(Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).clickable { clipboard.setText(AnnotatedString(m.summary.ifBlank { m.transcript })); state.toast = "Panoya kopyalandi" }, contentAlignment = Alignment.Center) { Icon(Icons.Default.ContentCopy, null, tint = S.muted, modifier = Modifier.size(18.dp)) }
             Spacer(Modifier.width(2.dp))
-            Box(Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).clickable {
-                try {
-                    val uri = FileProvider.getUriForFile(ctx, ctx.packageName + ".fileprovider", File(mm.audioPath))
-                    val i = Intent(Intent.ACTION_SEND).apply { type = "audio/wav"; putExtra(Intent.EXTRA_STREAM, uri); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }
-                    ctx.startActivity(Intent.createChooser(i, "Sesi paylas"))
-                } catch (e: Exception) { state.toast = "Paylasim hatasi: ${e.message}" }
-            }, contentAlignment = Alignment.Center) { Icon(Icons.Default.Share, null, tint = S.muted, modifier = Modifier.size(18.dp)) }
+            Box(Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).clickable { val i = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, m.summary.ifBlank { m.transcript }) }; ctx.startActivity(Intent.createChooser(i, "Paylas")) }, contentAlignment = Alignment.Center) { Icon(Icons.Default.Share, null, tint = S.muted, modifier = Modifier.size(18.dp)) }
         })
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) { MetaChip("S " + fmtDur(mm.durationMs)); MetaChip(fmtBytes(File(mm.audioPath).length())); MetaChip("16000Hz"); MetaChip("nvidia") }
-            Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp).clip(RoundedCornerShape(14.dp)).background(S.panel).border(1.dp, S.line, RoundedCornerShape(14.dp)).padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(40.dp).clip(CircleShape).background(S.purple).clickable {
-                    try {
-                        if (player == null) player = MediaPlayer().apply { setDataSource(mm.audioPath); prepare() }
-                        if (playing) { player?.pause(); playing = false } else { player?.start(); playing = true }
-                    } catch (e: Exception) { state.toast = "Oynatma hatasi: ${e.message}" }
-                }, contentAlignment = Alignment.Center) { Icon(if (playing) Icons.Default.Pause else Icons.Default.PlayArrow, null, tint = S.purpleDeep, modifier = Modifier.size(20.dp)) }
-                Spacer(Modifier.width(10.dp))
-                Slider(value = pos.coerceIn(0f, dur), onValueChange = { pos = it; player?.seekTo(it.toInt()) }, valueRange = 0f..dur, modifier = Modifier.weight(1f))
-                Spacer(Modifier.width(8.dp)); Text(fmtDur(pos.toLong()) + "/" + fmtDur(mm.durationMs), fontFamily = S.mono, fontSize = 8.5.sp, color = S.muted)
+            Row(Modifier.padding(horizontal = 18.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) { MetaChip("S " + fmtDur(m.durationMs)); MetaChip("16000Hz"); MetaChip("nvidia") }
+            if (m.summary.isNotBlank()) Section("AI OZET", S.purple, S.purpleDeep) {
+                Text(m.summary, fontSize = 12.sp, lineHeight = 20.sp, color = Color(0xFFC9C3D4))
+                if (m.topics().isNotEmpty()) { Spacer(Modifier.height(12.dp)); Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) { m.topics().forEach { Text(it, fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = S.purple, modifier = Modifier.clip(RoundedCornerShape(99.dp)).background(S.purple.copy(alpha = 0.12f)).border(1.dp, S.purple.copy(alpha = 0.2f), RoundedCornerShape(99.dp)).padding(horizontal = 11.dp, vertical = 5.dp)) } } }
+                m.decisions().forEach { d -> Row(Modifier.padding(top = 7.dp)) { Box(Modifier.width(2.dp).height(14.dp).background(S.purple)); Spacer(Modifier.width(9.dp)); Text(d, fontSize = 10.5.sp, color = Color(0xFFC9C3D4)) } }
             }
-            if (mm.summary.isNotBlank()) Section("AI OZET", S.purple, S.purpleDeep) {
-                Text(mm.summary, fontSize = 12.sp, lineHeight = 20.sp, color = Color(0xFFC9C3D4))
-                if (mm.topics().isNotEmpty()) { Spacer(Modifier.height(12.dp)); Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) { mm.topics().forEach { Text(it, fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, color = S.purple, modifier = Modifier.clip(RoundedCornerShape(99.dp)).background(S.purple.copy(alpha = 0.12f)).border(1.dp, S.purple.copy(alpha = 0.2f), RoundedCornerShape(99.dp)).padding(horizontal = 11.dp, vertical = 5.dp)) } } }
-                mm.decisions().forEach { d -> Row(Modifier.padding(top = 7.dp)) { Box(Modifier.width(2.dp).height(14.dp).background(S.purple)); Spacer(Modifier.width(9.dp)); Text(d, fontSize = 10.5.sp, color = Color(0xFFC9C3D4)) } }
-            }
-            if (mm.actions().isNotEmpty()) Section("AKSIYON MADDELERI", S.amber, Color(0xFF3A2A12)) {
-                mm.actions().forEachIndexed { i, a ->
+            if (m.actions().isNotEmpty()) Section("AKSIYON MADDELERI", S.amber, Color(0xFF3A2A12)) {
+                m.actions().forEachIndexed { i, a ->
                     Row(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
                         Text(String.format("%02d", i + 1), fontFamily = S.mono, fontWeight = FontWeight.Bold, fontSize = 10.sp, color = S.amber, modifier = Modifier.width(22.dp))
                         Column(Modifier.weight(1f)) {
@@ -504,8 +422,8 @@ fun DetailScreen(state: AppState) {
                 BasicTextField(value = query, onValueChange = { query = it }, singleLine = true, textStyle = TextStyle(color = S.text, fontSize = 12.sp), modifier = Modifier.weight(1f), decorationBox = { inner -> if (query.isEmpty()) Text("Transkriptte ara...", color = S.dim, fontSize = 12.sp); inner() })
             }
             Text("TRANSKRIPT", fontFamily = S.mono, fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = S.purple, modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp))
-            if (mm.transcript.isBlank()) Text("Transkript yok. Ayarlardan Groq anahtari ekleyip tekrar kaydet.", color = S.dim, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 18.dp))
-            else mm.transcript.split(Regex("(?<=\\.)\\s+")).filter { it.isNotBlank() }.forEachIndexed { i, sent ->
+            if (m.transcript.isBlank()) Text("Transkript yok. Ayarlardan Groq anahtari ekleyip tekrar kaydet.", color = S.dim, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 18.dp))
+            else m.transcript.split(Regex("(?<=\\.)\\s+")).filter { it.isNotBlank() }.forEachIndexed { i, sent ->
                 Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 4.dp)) {
                     Text(String.format("%02d", i + 1), fontFamily = S.mono, fontSize = 8.5.sp, color = S.dim, modifier = Modifier.width(26.dp).padding(top = 3.dp))
                     Text(highlight(sent, query), fontSize = 11.sp, lineHeight = 18.sp, color = Color(0xFFB7B1C2), modifier = Modifier.weight(1f))
@@ -526,7 +444,7 @@ fun DetailScreen(state: AppState) {
                 Spacer(Modifier.width(9.dp))
                 Box(Modifier.size(44.dp).clip(CircleShape).background(S.purple).clickable {
                     val q = input.trim(); if (q.isBlank()) return@clickable; input = ""; state.chat.add(true to q)
-                    state.scope.launch { val r = withContext(Dispatchers.IO) { Api.ask(q, mm.transcript, state.store.nvidiaModel()) }; state.chat.add(false to r.fold(onSuccess = { it }, onFailure = { "Hata: ${it.message}" })) }
+                    state.scope.launch { val r = withContext(Dispatchers.IO) { Api.ask(q, m.transcript, state.store.nvidiaModel()) }; state.chat.add(false to r.fold(onSuccess = { it }, onFailure = { "Hata: ${it.message}" })) }
                 }, contentAlignment = Alignment.Center) { Icon(Icons.AutoMirrored.Filled.Send, null, tint = S.purpleDeep, modifier = Modifier.size(18.dp)) }
             }
         }
@@ -559,15 +477,15 @@ fun SettingsScreen(state: AppState) {
         TopBar("Ayarlar", "Yapilandirma - motor - veri", onBack = { state.screen = "home" })
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 8.dp)) {
             SetCard("NVIDIA (OZET + SOHBET)") {
-                Text("Anahtar gomulu - model asagidan degisir", fontFamily = S.mono, fontSize = 9.sp, color = S.green); Spacer(Modifier.height(10.dp))
+                Text("Anahtar uygulamaya gomulu - model asagidan degisir", fontFamily = S.mono, fontSize = 9.sp, color = S.green); Spacer(Modifier.height(10.dp))
                 OutlinedTextField(value = model, onValueChange = { model = it }, label = { Text("NVIDIA MODEL", fontFamily = S.mono, fontSize = 8.sp, color = S.dim) }, singleLine = true, colors = tfColors(), modifier = Modifier.fillMaxWidth(), textStyle = TextStyle(color = S.text, fontFamily = S.mono, fontSize = 11.sp)); Spacer(Modifier.height(8.dp))
                 StudioButton("Modeli Kaydet", S.purple, modifier = Modifier.fillMaxWidth(), onClick = { state.store.setNvidiaModel(model); state.toast = "Model kaydedildi" }); Spacer(Modifier.height(10.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) { StudioButton("NVIDIA Test", S.panel3, S.text, onClick = { state.testAi() }); Spacer(Modifier.width(10.dp)); state.aiTest?.let { Text(it, fontFamily = S.mono, fontSize = 9.5.sp, color = if (it.startsWith("NVIDIA")) S.green else S.red) } }
             }
             SetCard("TRANSKRIPSIYON (GROQ WHISPER)") {
-                Text("Ucretsiz: console.groq.com", fontFamily = S.mono, fontSize = 9.sp, color = S.muted); Spacer(Modifier.height(10.dp))
+                Text("Ucretsiz anahtar: console.groq.com", fontFamily = S.mono, fontSize = 9.sp, color = S.muted); Spacer(Modifier.height(10.dp))
                 OutlinedTextField(value = groq, onValueChange = { groq = it }, label = { Text("GROQ API KEY", fontFamily = S.mono, fontSize = 8.sp, color = S.dim) }, singleLine = true, colors = tfColors(), modifier = Modifier.fillMaxWidth(), textStyle = TextStyle(color = S.text, fontFamily = S.mono, fontSize = 11.sp)); Spacer(Modifier.height(8.dp))
-                StudioButton("Groq Anahtarini Kaydet", S.purple, modifier = Modifier.fillMaxWidth(), onClick = { state.store.setGroqKey(groq.trim()); state.toast = "Groq kaydedildi" })
+                StudioButton("Groq Anahtarini Kaydet", S.purple, modifier = Modifier.fillMaxWidth(), onClick = { state.store.setGroqKey(groq.trim()); state.toast = "Groq anahtari kaydedildi" })
             }
             SetCard("SES KAYDI") { Text("16000 Hz - WAV PCM - 16-bit mono", fontFamily = S.mono, fontSize = 9.sp, color = S.muted) }
             SetCard("VERI") {
