@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -203,7 +204,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun AppRoot(state: AppState) {
-    Box(modifier = Modifier.fillMaxSize().background(S.bg)) {
+    Box(modifier = Modifier.fillMaxSize().background(S.bg).statusBarsPadding()) {
         when (state.screen) {
             "home" -> HomeScreen(state); "rec" -> RecordingScreen(state)
             "detail" -> DetailScreen(state); "settings" -> SettingsScreen(state)
