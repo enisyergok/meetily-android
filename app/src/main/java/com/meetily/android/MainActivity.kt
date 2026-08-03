@@ -885,4 +885,3 @@ fun RecordingScreenV5(state: AppState) {
     }
 }
 
-@Composable
