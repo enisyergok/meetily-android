@@ -920,31 +920,31 @@ fun DetailWithMap(state: AppState) {
 }
 
 @Composable
+
+@Composable
 fun MindMapView(m: Meeting) {
-    Canvas(Modifier.fillMaxWidth().height(420.dp)) {
-        val dens = drawContext.density
+    val topics = m.topics(); val acts = m.actions().take(6); val decs = m.decisions().take(4)
+    Canvas(Modifier.fillMaxWidth().height(300.dp)) {
         val w = size.width; val h = size.height; val cx = w / 2f; val cy = h / 2f
-        val r1 = minOf(w, h) * 0.28f; val r2 = minOf(w, h) * 0.45f
-        val topics = m.topics(); val acts = m.actions().take(6); val decs = m.decisions().take(4)
-        drawCircle(S.purple, 18f * dens, Offset(cx, cy))
-        val cp = android.graphics.Paint().apply { isAntiAlias = true; color = S.purpleDeep.toArgb(); textSize = 11f * dens; textAlign = android.graphics.Paint.Align.CENTER; typeface = android.graphics.Typeface.DEFAULT_BOLD }
-        drawContext.canvas.nativeCanvas.drawText(trunc(m.title, 14), cx, cy + 4f * dens, cp)
+        val r1 = minOf(w, h) * 0.30f; val r2 = minOf(w, h) * 0.46f
+        drawCircle(S.purple, 14f, Offset(cx, cy))
         topics.forEachIndexed { i, t ->
             val a = 2f * Math.PI.toFloat() * i / maxOf(topics.size, 1) - Math.PI.toFloat() / 2f
             val x = cx + r1 * cos(a); val y = cy + r1 * sin(a)
             drawLine(S.purple, Offset(cx, cy), Offset(x, y), strokeWidth = 2.5f)
-            drawCircle(S.purple, 3f * dens, Offset(x, y))
-            val p = android.graphics.Paint().apply { isAntiAlias = true; color = S.purple.toArgb(); textSize = 10f * dens; textAlign = android.graphics.Paint.Align.CENTER }
-            drawContext.canvas.nativeCanvas.drawText(trunc(t, 16), x, y - 5f * dens, p)
+            drawCircle(S.purple, 5f, Offset(x, y))
         }
         val leaves = acts.map { it.task to S.amber } + decs.map { it to S.green }
         leaves.forEachIndexed { i, pr ->
             val a = 2f * Math.PI.toFloat() * i / maxOf(leaves.size, 1) - Math.PI.toFloat() / 2f + 0.35f
             val x = cx + r2 * cos(a); val y = cy + r2 * sin(a)
             drawLine(pr.second.copy(alpha = 0.5f), Offset(cx, cy), Offset(x, y), strokeWidth = 1.5f)
-            drawCircle(pr.second, 2f * dens, Offset(x, y))
-            val p = android.graphics.Paint().apply { isAntiAlias = true; color = pr.second.toArgb(); textSize = 9f * dens; textAlign = android.graphics.Paint.Align.CENTER }
-            drawContext.canvas.nativeCanvas.drawText(trunc(pr.first, 18), x, y + 6f * dens, p)
+            drawCircle(pr.second, 4f, Offset(x, y))
         }
+    }
+    Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp)) {
+        topics.forEach { t -> Row(Modifier.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(8.dp).clip(CircleShape).background(S.purple)); Spacer(Modifier.width(8.dp)); Text("Konu: " + t, color = S.purple, fontSize = 10.sp) } }
+        acts.forEach { a -> Row(Modifier.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(8.dp).clip(CircleShape).background(S.amber)); Spacer(Modifier.width(8.dp)); Text("Aksiyon: " + a.task, color = S.amber, fontSize = 9.5.sp) } }
+        decs.forEach { d -> Row(Modifier.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(8.dp).clip(CircleShape).background(S.green)); Spacer(Modifier.width(8.dp)); Text("Karar: " + d, color = S.green, fontSize = 9.5.sp) } }
     }
 }
