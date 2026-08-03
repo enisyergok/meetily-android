@@ -86,6 +86,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
@@ -898,16 +899,16 @@ fun MindMapView(m: Meeting) {
         val w = size.width; val h = size.height; val cx = w / 2; val cy = h / 2
         val r1 = Math.min(w, h) * 0.28f; val r2 = Math.min(w, h) * 0.45f
         val topics = m.topics(); val acts = m.actions().take(6); val decs = m.decisions().take(4)
-        drawCircle(S.purple, 18 * dens, Offset(cx, cy))
-        val cp = android.graphics.Paint().apply { isAntiAlias = true; color = S.purpleDeep.toArgb(); textSize = 11 * dens; textAlign = android.graphics.Paint.Align.CENTER; typeface = android.graphics.Typeface.DEFAULT_BOLD }
-        drawContext.canvas.nativeCanvas.drawText(trunc(m.title, 14), cx, cy + 4 * dens, cp)
+        drawCircle(S.purple, 18f * dens, Offset(cx, cy))
+        val cp = android.graphics.Paint().apply { isAntiAlias = true; color = S.purpleDeep.toArgb(); textSize = 11f * dens; textAlign = android.graphics.Paint.Align.CENTER; typeface = android.graphics.Typeface.DEFAULT_BOLD }
+        drawContext.canvas.nativeCanvas.drawText(trunc(m.title, 14), cx, cy + 4f * dens, cp)
         topics.forEachIndexed { i, t ->
             val a = (2.0 * Math.PI * i / maxOf(topics.size, 1) - Math.PI / 2)
             val x = cx + r1 * Math.cos(a).toFloat(); val y = cy + r1 * Math.sin(a).toFloat()
             drawLine(S.purple, Offset(cx, cy), Offset(x, y), strokeWidth = 2.5f)
-            drawCircle(S.purple, 3 * dens, Offset(x, y))
-            val p = android.graphics.Paint().apply { isAntiAlias = true; color = S.purple.toArgb(); textSize = 10 * dens; textAlign = android.graphics.Paint.Align.CENTER }
-            drawContext.canvas.nativeCanvas.drawText(trunc(t, 16), x, y - 5 * dens, p)
+            drawCircle(S.purple, 3f * dens, Offset(x, y))
+            val p = android.graphics.Paint().apply { isAntiAlias = true; color = S.purple.toArgb(); textSize = 10f * dens; textAlign = android.graphics.Paint.Align.CENTER }
+            drawContext.canvas.nativeCanvas.drawText(trunc(t, 16), x, y - 5f * dens, p)
         }
         val leaves = acts.map { it.task to S.amber } + decs.map { it to S.green }
         leaves.forEachIndexed { i, pair ->
@@ -915,9 +916,9 @@ fun MindMapView(m: Meeting) {
             val a = (2.0 * Math.PI * i / maxOf(leaves.size, 1) - Math.PI / 2 + 0.35)
             val x = cx + r2 * Math.cos(a).toFloat(); val y = cy + r2 * Math.sin(a).toFloat()
             drawLine(col.copy(alpha = 0.5f), Offset(cx, cy), Offset(x, y), strokeWidth = 1.5f)
-            drawCircle(col, 2 * dens, Offset(x, y))
-            val p = android.graphics.Paint().apply { isAntiAlias = true; color = col.toArgb(); textSize = 9 * dens; textAlign = android.graphics.Paint.Align.CENTER }
-            drawContext.canvas.nativeCanvas.drawText(trunc(txt, 18), x, y + 6 * dens, p)
+            drawCircle(col, 2f * dens, Offset(x, y))
+            val p = android.graphics.Paint().apply { isAntiAlias = true; color = col.toArgb(); textSize = 9f * dens; textAlign = android.graphics.Paint.Align.CENTER }
+            drawContext.canvas.nativeCanvas.drawText(trunc(txt, 18), x, y + 6f * dens, p)
         }
     }
 }
