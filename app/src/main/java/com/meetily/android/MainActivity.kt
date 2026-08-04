@@ -227,10 +227,11 @@ class MainActivity : ComponentActivity() {
 fun AppRoot(state: AppState) {
     Box(modifier = Modifier.fillMaxSize().background(S.bg).statusBarsPadding().navigationBarsPadding()) {
         when (state.screen) {
-            "home" -> HomeScreenV3(state); "rec" -> RecordingScreenV2(state)
+            "home" -> HomeWithMemory(state); "rec" -> RecordingScreenV2(state)
             "detail" -> DetailWithMap(state); "settings" -> SettingsScreen(state)
             "map" -> MapScreen(state)
             "canli" -> LiveScreen(state)
+            "memory" -> MemoryScreen(state)
         }
         state.toast?.let { msg ->
             LaunchedEffect(msg) { delay(2200); state.toast = null }
@@ -1007,6 +1008,79 @@ fun RecordingWithLive(state: AppState) {
         RecordingScreenV5(state)
         Box(Modifier.align(Alignment.BottomStart).padding(16.dp).clip(RoundedCornerShape(99.dp)).background(S.green).clickable { state.screen = "canli" }.padding(horizontal = 16.dp, vertical = 10.dp)) {
             Text("CANLI", fontFamily = S.mono, fontWeight = FontWeight.Bold, fontSize = 10.sp, color = S.bg)
+        }
+    }
+}
+
+data class Seg(val title: String, val mm: Int, val spk: Int, val text: String)
+
+fun allSegments(state: AppState): List<Seg> {
+    val out = mutableListOf<Seg>()
+    for (m in state.store.list()) {
+        for (line in m.transcript.split("\n")) {
+            val f = Regex("^\\[(\\d+):(\\d+)\\] K(\\d+): (.*)$").find(line)
+            if (f != null) out.add(Seg(m.title, f.groupValues[1].toInt(), f.groupValues[3].toInt(), f.groupValues[4]))
+            else if (line.isNotBlank()) out.add(Seg(m.title, 0, 0, line))
+        }
+    }
+    return out
+}
+
+fun retrieve(q: String, segs: List<Seg>, k: Int = 8): List<Seg> {
+    val qt = q.lowercase().split(" ").filter { it.length > 2 }.toSet()
+    if (qt.isEmpty()) return emptyList()
+    return segs.map { s -> s to qt.count { t -> s.text.lowercase().contains(t) } }
+        .filter { it.second > 0 }.sortedByDescending { it.second }.take(k).map { it.first }
+}
+
+@Composable
+fun MemoryScreen(state: AppState) {
+    var q by remember { mutableStateOf("") }
+    var ans by remember { mutableStateOf("") }
+    var sources by remember { mutableStateOf<List<Seg>>(emptyList()) }
+    var busy by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxSize()) {
+        TopBar("Hafiza", "Tum toplantilarin - tek sorgu", onBack = { state.screen = "home" })
+        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(value = q, onValueChange = { q = it }, singleLine = true, placeholder = { Text("Orn: butce hakkinda ne konustuk?", color = S.dim, fontSize = 12.sp) }, colors = tfColors(), modifier = Modifier.weight(1f), textStyle = TextStyle(color = S.text, fontSize = 12.sp))
+            Spacer(Modifier.width(9.dp))
+            Box(Modifier.size(44.dp).clip(CircleShape).background(S.blue).clickable {
+                val query = q.trim(); if (query.isBlank() || busy) return@clickable
+                busy = true; ans = ""
+                val segs = retrieve(query, allSegments(state)); sources = segs
+                state.scope.launch {
+                    val ctx2 = segs.joinToString("\n") { "[" + it.title + " " + it.mm + ":00 K" + it.spk + "] " + it.text }
+                    val r = withContext(Dispatchers.IO) { Api.ask(query, ctx2, state.store.nvidiaModel()) }
+                    ans = r.fold(onSuccess = { it }, onFailure = { "Hata: " + it.message }); busy = false
+                }
+            }, contentAlignment = Alignment.Center) { Icon(Icons.AutoMirrored.Filled.Send, null, tint = S.bg, modifier = Modifier.size(18.dp)) }
+        }
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp)) {
+            if (busy) Text("Hafiza taraniyor...", fontFamily = S.mono, fontSize = 10.sp, color = S.blue)
+            if (ans.isNotBlank()) {
+                Text("CEVAP", fontFamily = S.mono, fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = S.blue); Spacer(Modifier.height(6.dp))
+                Text(ans, fontSize = 12.sp, lineHeight = 20.sp, color = S.text); Spacer(Modifier.height(14.dp))
+            }
+            if (sources.isNotEmpty()) {
+                Text("KAYNAKLAR (" + sources.size + ")", fontFamily = S.mono, fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = S.muted); Spacer(Modifier.height(6.dp))
+                sources.forEach { s ->
+                    Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+                        Text("[" + s.mm + ":00 K" + s.spk + "]", fontFamily = S.mono, fontSize = 8.5.sp, color = S.blue, modifier = Modifier.width(70.dp))
+                        Text(s.title + ": " + s.text, fontSize = 10.sp, color = S.muted, modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+fun HomeWithMemory(state: AppState) {
+    Box(Modifier.fillMaxSize()) {
+        HomeScreenV3(state)
+        Box(Modifier.align(Alignment.BottomStart).padding(16.dp).clip(RoundedCornerShape(99.dp)).background(S.blue).clickable { state.screen = "memory" }.padding(horizontal = 16.dp, vertical = 10.dp)) {
+            Text("HAFIZA", fontFamily = S.mono, fontWeight = FontWeight.Bold, fontSize = 10.sp, color = S.bg)
         }
     }
 }
