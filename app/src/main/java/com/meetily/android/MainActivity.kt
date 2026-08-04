@@ -1218,7 +1218,7 @@ fun PersonsScreen(state: AppState) {
                         Text("%" + (list.size * 100 / total), fontFamily = S.mono, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = col)
                     }
                     Spacer(Modifier.height(6.dp))
-                    Text(list.size + " segment - " + words + " kelime - " + commits.size + " taahhut", fontFamily = S.mono, fontSize = 8.5.sp, color = S.muted)
+                    Text("${list.size} segment - $words kelime - ${commits.size} taahhut", fontFamily = S.mono, fontSize = 8.5.sp, color = S.muted)
                     if (commits.isNotEmpty()) {
                         Spacer(Modifier.height(8.dp))
                         Text("TAAAHHUTLER", fontFamily = S.mono, fontSize = 8.5.sp, fontWeight = FontWeight.Bold, color = S.amber)
