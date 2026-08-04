@@ -230,6 +230,7 @@ fun AppRoot(state: AppState) {
             "home" -> HomeScreenV3(state); "rec" -> RecordingScreenV2(state)
             "detail" -> DetailWithMap(state); "settings" -> SettingsScreen(state)
             "map" -> MapScreen(state)
+            "canli" -> LiveScreen(state)
         }
         state.toast?.let { msg ->
             LaunchedEffect(msg) { delay(2200); state.toast = null }
@@ -945,5 +946,67 @@ fun MindMapView(m: Meeting) {
         topics.forEach { t -> Row(Modifier.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(8.dp).clip(CircleShape).background(S.purple)); Spacer(Modifier.width(8.dp)); Text("Konu: " + t, color = S.purple, fontSize = 10.sp) } }
         acts.forEach { a -> Row(Modifier.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(8.dp).clip(CircleShape).background(S.amber)); Spacer(Modifier.width(8.dp)); Text("Aksiyon: " + a.task, color = S.amber, fontSize = 9.5.sp) } }
         decs.forEach { d -> Row(Modifier.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(8.dp).clip(CircleShape).background(S.green)); Spacer(Modifier.width(8.dp)); Text("Karar: " + d, color = S.green, fontSize = 9.5.sp) } }
+    }
+}
+
+fun writeIntLE(b: ByteArray, off: Int, v: Int) {
+    b[off] = (v and 0xFF).toByte(); b[off + 1] = ((v shr 8) and 0xFF).toByte(); b[off + 2] = ((v shr 16) and 0xFF).toByte(); b[off + 3] = ((v shr 24) and 0xFF).toByte()
+}
+
+fun snapshotWav(src: File, dst: File): Boolean {
+    return try {
+        val b = src.readBytes()
+        if (b.size <= 44) return false
+        val out = b.copyOf()
+        val dataLen = b.size - 44
+        writeIntLE(out, 4, 36 + dataLen)
+        writeIntLE(out, 40, dataLen)
+        dst.writeBytes(out)
+        true
+    } catch (e: Exception) { false }
+}
+
+@Composable
+fun LiveScreen(state: AppState) {
+    val ctx = LocalContext.current
+    var live by remember { mutableStateOf("") }
+    var status by remember { mutableStateOf("baglaniyor...") }
+    val m = remember(state.selectedId) { state.store.get(state.selectedId ?: -1) }
+    LaunchedEffect(m) {
+        while (true) {
+            delay(6000)
+            val mm = m ?: continue
+            val key = state.store.groqKey()
+            if (key.isBlank()) { status = "Groq anahtari yok - canli onizleme kapali"; continue }
+            val src = File(mm.audioPath)
+            if (!src.exists() || src.length() <= 44) continue
+            val tmp = File(ctx.cacheDir, "live.wav")
+            if (!snapshotWav(src, tmp)) { status = "ses okunamiyor"; continue }
+            status = "dinleniyor..."
+            val r = withContext(Dispatchers.IO) { Api.transcribe(tmp, key) }
+            r.fold(onSuccess = { live = it; status = "CANLI" }, onFailure = { status = "baglanti hatasi - tekrar denenecek" })
+        }
+    }
+    Column(Modifier.fillMaxSize()) {
+        TopBar("Canli Transkript", m?.title, onBack = { state.screen = "rec" })
+        Row(Modifier.padding(horizontal = 20.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(9.dp).clip(CircleShape).background(if (status == "CANLI") S.green else S.amber)); Spacer(Modifier.width(8.dp))
+            Text(status, fontFamily = S.mono, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = if (status == "CANLI") S.green else S.amber)
+        }
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp)) {
+            if (live.isBlank()) Text("Henuz metin yok. Konusmaya baslayin - Whisper 6 sn'de bir dinler.", color = S.dim, fontSize = 12.sp)
+            else Text(live, fontSize = 13.sp, lineHeight = 21.sp, color = S.text)
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+fun RecordingWithLive(state: AppState) {
+    Box(Modifier.fillMaxSize()) {
+        RecordingScreenV5(state)
+        Box(Modifier.align(Alignment.BottomStart).padding(16.dp).clip(RoundedCornerShape(99.dp)).background(S.green).clickable { state.screen = "canli" }.padding(horizontal = 16.dp, vertical = 10.dp)) {
+            Text("CANLI", fontFamily = S.mono, fontWeight = FontWeight.Bold, fontSize = 10.sp, color = S.bg)
+        }
     }
 }
