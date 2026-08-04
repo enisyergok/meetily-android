@@ -231,7 +231,7 @@ fun AppRoot(state: AppState) {
             "detail" -> DetailWithMap(state); "settings" -> SettingsScreen(state)
             "map" -> MapScreen(state)
             "canli" -> LiveScreen(state)
-            "memory" -> MemoryScreen(state)
+            "memory" -> MemoryScreenV2(state)
         }
         state.toast?.let { msg ->
             LaunchedEffect(msg) { delay(2200); state.toast = null }
@@ -1081,6 +1081,111 @@ fun HomeWithMemory(state: AppState) {
         HomeScreenV3(state)
         Box(Modifier.align(Alignment.BottomStart).padding(16.dp).clip(RoundedCornerShape(99.dp)).background(S.blue).clickable { state.screen = "memory" }.padding(horizontal = 16.dp, vertical = 10.dp)) {
             Text("HAFIZA", fontFamily = S.mono, fontWeight = FontWeight.Bold, fontSize = 10.sp, color = S.bg)
+        }
+    }
+}
+
+fun embedText(t: String): List<Float> {
+    val dim = 256
+    val v = FloatArray(dim)
+    val s = t.lowercase()
+    val tokens = s.split(Regex("[^a-z0-9çğıöşüâîû]+")).filter { it.isNotBlank() }
+    fun add(tok: String, w: Float) {
+        if (tok.isEmpty()) return
+        var h = 0
+        for (c in tok) h = (h * 31 + c.code) and 0x7fffffff
+        v[h % dim] += w
+    }
+    for (tk in tokens) {
+        add(tk, 1f)
+        for (i in 0 until (tk.length - 2)) add(tk.substring(i, i + 3), 0.5f)
+    }
+    var n = 0f
+    for (x in v) n += x * x
+    val norm = Math.sqrt(n.toDouble()).toFloat()
+    if (norm > 0f) for (i in 0 until dim) v[i] /= norm
+    return v.toList()
+}
+
+fun cosine(a: List<Float>, b: List<Float>): Float {
+    var d = 0f
+    val n = minOf(a.size, b.size)
+    for (i in 0 until n) d += a[i] * b[i]
+    return d
+}
+
+fun segKey(s: Seg) = s.title + "|" + s.mm + "|" + s.spk + "|" + s.text.hashCode()
+
+fun loadVecs(ctx: android.content.Context): MutableMap<String, List<Float>> {
+    val out = mutableMapOf<String, List<Float>>()
+    try {
+        val f = File(ctx.filesDir, "meetily_vectors.json")
+        if (!f.exists()) return out
+        val o = org.json.JSONObject(f.readText())
+        for (k in o.keys()) {
+            val arr = o.getJSONArray(k)
+            out[k] = (0 until arr.length()).map { arr.getDouble(it).toFloat() }
+        }
+    } catch (e: Exception) {}
+    return out
+}
+
+fun saveVecs(ctx: android.content.Context, map: Map<String, List<Float>>) {
+    try {
+        val o = org.json.JSONObject()
+        for ((k, v) in map) {
+            val arr = org.json.JSONArray()
+            for (x in v) arr.put(x.toDouble())
+            o.put(k, arr)
+        }
+        File(ctx.filesDir, "meetily_vectors.json").writeText(o.toString())
+    } catch (e: Exception) {}
+}
+
+@Composable
+fun MemoryScreenV2(state: AppState) {
+    val ctx = LocalContext.current
+    var q by remember { mutableStateOf("") }
+    var ans by remember { mutableStateOf("") }
+    var sources by remember { mutableStateOf<List<Seg>>(emptyList()) }
+    var busy by remember { mutableStateOf(false) }
+    var idxInfo by remember { mutableStateOf("indeks: 0 segment") }
+    Column(Modifier.fillMaxSize()) {
+        TopBar("Hafiza v2", "Vektor indeks + semantik arama", onBack = { state.screen = "home" })
+        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(value = q, onValueChange = { q = it }, singleLine = true, placeholder = { Text("Semantik sorgu...", color = S.dim, fontSize = 12.sp) }, colors = tfColors(), modifier = Modifier.weight(1f), textStyle = TextStyle(color = S.text, fontSize = 12.sp))
+            Spacer(Modifier.width(9.dp))
+            Box(Modifier.size(44.dp).clip(CircleShape).background(S.blue).clickable {
+                val query = q.trim(); if (query.isBlank() || busy) return@clickable
+                busy = true; ans = ""
+                state.scope.launch {
+                    val segs = allSegments(state)
+                    val vecs = loadVecs(ctx)
+                    var added = 0
+                    for (s in segs) { val k = segKey(s); if (!vecs.containsKey(k)) { vecs[k] = embedText(s.text); added++ } }
+                    if (added > 0) saveVecs(ctx, vecs)
+                    idxInfo = "indeks: " + vecs.size + " segment"
+                    val qv = embedText(query)
+                    val sem = segs.map { s -> s to cosine(qv, vecs[segKey(s)] ?: embedText(s.text)) }
+                        .sortedByDescending { it.second }.take(6).map { it.first }
+                    val lex = retrieve(query, segs, 6)
+                    val merged = (sem + lex).distinct()
+                    sources = merged
+                    val ctx2 = merged.joinToString("\n") { "[" + it.title + " " + it.mm + ":00 K" + it.spk + "] " + it.text }
+                    val r = withContext(Dispatchers.IO) { Api.ask(query, ctx2, state.store.nvidiaModel()) }
+                    ans = r.fold(onSuccess = { it }, onFailure = { "Hata: " + it.message }); busy = false
+                }
+            }, contentAlignment = Alignment.Center) { Icon(Icons.AutoMirrored.Filled.Send, null, tint = S.bg, modifier = Modifier.size(18.dp)) }
+        }
+        Text(idxInfo, fontFamily = S.mono, fontSize = 8.5.sp, color = S.dim, modifier = Modifier.padding(horizontal = 18.dp))
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp)) {
+            if (busy) Text("Vektor uzayi taraniyor...", fontFamily = S.mono, fontSize = 10.sp, color = S.blue)
+            if (ans.isNotBlank()) { Text("CEVAP", fontFamily = S.mono, fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = S.blue); Spacer(Modifier.height(6.dp)); Text(ans, fontSize = 12.sp, lineHeight = 20.sp, color = S.text); Spacer(Modifier.height(14.dp)) }
+            if (sources.isNotEmpty()) {
+                Text("KAYNAKLAR (" + sources.size + ")", fontFamily = S.mono, fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = S.muted); Spacer(Modifier.height(6.dp))
+                sources.forEach { s -> Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) { Text("[" + s.mm + ":00 K" + s.spk + "]", fontFamily = S.mono, fontSize = 8.5.sp, color = S.blue, modifier = Modifier.width(70.dp)); Text(s.title + ": " + s.text, fontSize = 10.sp, color = S.muted, modifier = Modifier.weight(1f)) } }
+            }
+            Spacer(Modifier.height(24.dp))
         }
     }
 }
