@@ -206,3 +206,34 @@ object ApiDiar {
         } catch (e: Exception) { Result.failure(e) }
     }
 }
+
+object Embed {
+    private const val EMBED_URL = "https://integrate.api.nvidia.com/v1/embeddings"
+    private const val MODEL = "nvidia/nv-embedqa-e5-v5"
+    
+    fun embed(text: String): Result<List<Float>> {
+        return try {
+            val body = org.json.JSONObject().apply {
+                put("input", listOf(text))
+                put("model", MODEL)
+                put("input_type", "passage")
+            }
+            val req = okhttp3.Request.Builder()
+                .url(EMBED_URL)
+                .addHeader("Authorization", "Bearer $NVIDIA_KEY")
+                .addHeader("Content-Type", "application/json")
+                .post(body.toString().toRequestBody("application/json".toMediaTypeOrNull()))
+                .build()
+            val client = okhttp3.OkHttpClient.Builder().readTimeout(60, java.util.concurrent.TimeUnit.SECONDS).build()
+            client.newCall(req).execute().use { r ->
+                if (!r.isSuccessful) return Result.failure(Exception("Embed ${r.code}"))
+                val o = org.json.JSONObject(r.body?.string() ?: "{}")
+                val arr = o.optJSONArray("data")
+                if (arr == null || arr.length() == 0) return Result.failure(Exception("No embedding"))
+                val emb = arr.getJSONObject(0).optJSONArray("embedding")
+                if (emb == null) return Result.failure(Exception("No embedding"))
+                Result.success((0 until emb.length()).map { emb.getDouble(it).toFloat() })
+            }
+        } catch (e: Exception) { Result.failure(e) }
+    }
+}

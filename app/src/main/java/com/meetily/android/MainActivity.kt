@@ -1163,10 +1163,10 @@ fun MemoryScreenV2(state: AppState) {
                     val segs = allSegments(state)
                     val vecs = loadVecs(ctx)
                     var added = 0
-                    for (s in segs) { val k = segKey(s); if (!vecs.containsKey(k)) { vecs[k] = embedText(s.text); added++ } }
+                    for (s in segs) { val k = segKey(s); if (!vecs.containsKey(k)) { vecs[k] = embedTextAsync(s.text); added++ } }
                     if (added > 0) saveVecs(ctx, vecs)
                     idxInfo = "indeks: " + vecs.size + " segment"
-                    val qv = embedText(query)
+                    val qv = embedTextAsync(query)
                     val sem = segs.map { s -> s to cosine(qv, vecs[segKey(s)] ?: embedText(s.text)) }
                         .sortedByDescending { it.second }.take(6).map { it.first }
                     val lex = retrieve(query, segs, 6)
@@ -1241,5 +1241,11 @@ fun HomeWithBrain(state: AppState) {
             Spacer(Modifier.height(8.dp))
             Box(Modifier.clip(RoundedCornerShape(99.dp)).background(S.blue).clickable { state.screen = "memory" }.padding(horizontal = 16.dp, vertical = 10.dp)) { Text("HAFIZA", fontFamily = S.mono, fontWeight = FontWeight.Bold, fontSize = 10.sp, color = S.bg) }
         }
+    }
+}
+
+suspend fun embedTextAsync(text: String): List<Float> {
+    return withContext(Dispatchers.IO) {
+        Embed.embed(text).getOrNull() ?: embedText(text)
     }
 }
