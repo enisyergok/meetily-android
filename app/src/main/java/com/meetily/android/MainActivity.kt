@@ -240,6 +240,7 @@ fun AppRoot(state: AppState) {
     }
 }
 
+@Composable
 fun TopBar(title: String, sub: String? = null, onBack: (() -> Unit)? = null, trailing: @Composable () -> Unit = {}) {
     Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         if (onBack != null) Box(modifier = Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).clickable { onBack() }, contentAlignment = Alignment.Center) {
@@ -253,14 +254,17 @@ fun TopBar(title: String, sub: String? = null, onBack: (() -> Unit)? = null, tra
     }
 }
 
+@Composable
 fun Led(color: Color, on: Boolean = true) { Box(Modifier.size(8.dp).clip(CircleShape).background(if (on) color else S.panel3)) }
 
+@Composable
 fun StudioButton(label: String, color: Color, textColor: Color = S.bg, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Box(modifier = modifier.clip(RoundedCornerShape(12.dp)).background(color).clickable(onClick = onClick).padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
         Text(label, color = textColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
     }
 }
 
+@Composable
 fun MetaChip(text: String, hot: Boolean = false) {
     Text(text, fontFamily = S.mono, fontSize = 8.5.sp, color = if (hot) S.amber else S.muted, maxLines = 1, overflow = TextOverflow.Ellipsis,
         modifier = Modifier.clip(RoundedCornerShape(4.dp)).border(1.dp, if (hot) S.amber.copy(alpha = 0.35f) else S.line2, RoundedCornerShape(4.dp)).padding(horizontal = 9.dp, vertical = 4.dp))
@@ -268,6 +272,7 @@ fun MetaChip(text: String, hot: Boolean = false) {
 
 fun fmtDur(ms: Long): String { val s = ms / 1000; return String.format("%02d:%02d", s / 60, s % 60) }
 
+@Composable
 fun HomeScreen(state: AppState) { val ctx = LocalContext.current
     val meetings = remember(state.processing, state.listVersion) { state.store.list() }
     Box(Modifier.fillMaxSize()) {
@@ -298,6 +303,7 @@ fun HomeScreen(state: AppState) { val ctx = LocalContext.current
     }
 }
 
+@Composable
 fun MeetingCard(m: Meeting, onClick: () -> Unit, onDelete: () -> Unit) {
     val accent = when (m.status) { Meeting.STATUS_DONE -> S.green; Meeting.STATUS_RECORDING -> S.red; Meeting.STATUS_FAILED -> S.red; else -> S.amber }
     val badge = when (m.status) { Meeting.STATUS_DONE -> "TAMAM" to S.green; Meeting.STATUS_RECORDING -> "KAYIT" to S.red; Meeting.STATUS_FAILED -> "HATA" to S.red; Meeting.STATUS_TRANSCRIBING -> "TRANSKRIP" to S.amber; else -> "OZET" to S.amber }
@@ -314,6 +320,7 @@ fun MeetingCard(m: Meeting, onClick: () -> Unit, onDelete: () -> Unit) {
     }
 }
 
+@Composable
 fun WaveThumb(color: Color) {
     val heights = remember { listOf(0.3f, 0.6f, 0.9f, 0.5f, 0.75f, 0.4f) }
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.height(34.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -321,6 +328,7 @@ fun WaveThumb(color: Color) {
     }
 }
 
+@Composable
 fun RecordingScreen(state: AppState) {
     val svc = state.service
     val recState = svc?.recordingState?.collectAsState()?.value ?: RecordingState.IDLE
@@ -360,6 +368,7 @@ fun RecordingScreen(state: AppState) {
     }
 }
 
+@Composable
 fun LevelBar(amp: Float) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         Text("SEVIYE", fontFamily = S.mono, fontSize = 8.5.sp, color = S.dim, modifier = Modifier.width(48.dp))
@@ -367,6 +376,7 @@ fun LevelBar(amp: Float) {
     }
 }
 
+@Composable
 fun WaveCanvas(history: List<Float>, amp: Float, active: Boolean, modifier: Modifier) {
     Canvas(modifier) {
         val n = 48; val bw = size.width / (n * 1.8f); val cy = size.height / 2
@@ -379,6 +389,7 @@ fun WaveCanvas(history: List<Float>, amp: Float, active: Boolean, modifier: Modi
     }
 }
 
+@Composable
 fun Pipeline(state: AppState) {
     val rec = state.service?.recordingState?.collectAsState()?.value
     val step = when { !state.processing && rec == RecordingState.RECORDING -> 0; state.procProgress < 0.5f -> 1; state.procProgress < 0.9f -> 2; state.processing -> 3; else -> 0 }
@@ -396,6 +407,7 @@ fun Pipeline(state: AppState) {
     }
 }
 
+@Composable
 fun DetailScreen(state: AppState) {
     val m = remember(state.selectedId, state.processing) { state.store.get(state.selectedId ?: -1) }
     val clipboard = LocalClipboardManager.current; val ctx = LocalContext.current
@@ -461,6 +473,7 @@ fun DetailScreen(state: AppState) {
     }
 }
 
+@Composable
 fun Section(title: String, accent: Color, bg: Color, content: @Composable () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 7.dp).clip(RoundedCornerShape(16.dp)).background(bg.copy(alpha = 0.5f)).border(1.dp, accent.copy(alpha = 0.22f), RoundedCornerShape(16.dp)).padding(15.dp)) {
         Text(title, fontFamily = S.mono, fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = accent); Spacer(Modifier.height(10.dp)); content()
@@ -479,6 +492,7 @@ fun highlight(text: String, q: String): AnnotatedString {
     }
 }
 
+@Composable
 fun SettingsScreen(state: AppState) {
     var groq by remember { mutableStateOf(state.store.groqKey()) }; var model by remember { mutableStateOf(state.store.nvidiaModel()) }
     Column(Modifier.fillMaxSize()) {
@@ -505,17 +519,20 @@ fun SettingsScreen(state: AppState) {
     }
 }
 
+@Composable
 fun SetCard(title: String, content: @Composable () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(vertical = 7.dp).clip(RoundedCornerShape(16.dp)).background(S.panel).border(1.dp, S.line, RoundedCornerShape(16.dp)).padding(15.dp)) {
         Text(title, fontFamily = S.mono, fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = S.purple); Spacer(Modifier.height(12.dp)); content()
     }
 }
 
+@Composable
 fun tfColors() = OutlinedTextFieldDefaults.colors(focusedBorderColor = S.purpleDeep, unfocusedBorderColor = S.line, cursorColor = S.purple, focusedContainerColor = S.panel2, unfocusedContainerColor = S.panel2)
 
 fun fmtBytes(b: Long): String = if (b < 1048576) (b / 1024).toString() + " KB" else String.format("%.1f MB", b / 1048576.0)
 fun fmtTotal(ms: Long): String { val m = ms / 60000; return if (m < 60) m.toString() + " dk" else (m / 60).toString() + " s " + (m % 60) + " dk" }
 
+@Composable
 fun StatTile(value: String, label: String, color: Color, modifier: Modifier = Modifier) {
     Column(modifier.clip(RoundedCornerShape(14.dp)).background(S.panel).border(1.dp, S.line, RoundedCornerShape(14.dp)).padding(12.dp)) {
         Text(value, fontFamily = S.mono, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = color)
@@ -523,6 +540,7 @@ fun StatTile(value: String, label: String, color: Color, modifier: Modifier = Mo
     }
 }
 
+@Composable
 fun HomeScreenV2(state: AppState) {
     val meetings = remember(state.processing, state.listVersion) { state.store.list() }
     var q by remember { mutableStateOf("") }
@@ -566,6 +584,7 @@ fun HomeScreenV2(state: AppState) {
     }
 }
 
+@Composable
 fun HomeScreenV3(state: AppState) {
     val meetings = remember(state.processing, state.listVersion) { state.store.list() }
     var q by remember { mutableStateOf("") }
@@ -622,6 +641,7 @@ fun HomeScreenV3(state: AppState) {
     }
 }
 
+@Composable
 fun VuMeter(amp: Float) {
     val seg = 12
     val lit = (amp.coerceIn(0f, 1f) * seg).toInt()
@@ -633,6 +653,7 @@ fun VuMeter(amp: Float) {
     }
 }
 
+@Composable
 fun RecordingScreenV2(state: AppState) {
     val svc = state.service
     val recState = svc?.recordingState?.collectAsState()?.value ?: RecordingState.IDLE
@@ -676,6 +697,7 @@ fun RecordingScreenV2(state: AppState) {
     }
 }
 
+@Composable
 fun RecordingScreenV4(state: AppState) {
     val svc = state.service
     val recState = svc?.recordingState?.collectAsState()?.value ?: RecordingState.IDLE
@@ -722,6 +744,7 @@ fun RecordingScreenV4(state: AppState) {
     }
 }
 
+@Composable
 fun DetailScreenV2(state: AppState) {
     val m = remember(state.selectedId, state.processing) { state.store.get(state.selectedId ?: -1) }
     val clipboard = LocalClipboardManager.current; val ctx = LocalContext.current
@@ -819,6 +842,7 @@ fun dbStr(a: Float): String {
     return d.toString() + " dB"
 }
 
+@Composable
 fun RecordingScreenV5(state: AppState) {
     val svc = state.service
     val ctx = LocalContext.current
@@ -871,6 +895,7 @@ fun RecordingScreenV5(state: AppState) {
 
 fun trunc(s: String, n: Int) = if (s.length <= n) s else s.substring(0, n - 1) + "."
 
+@Composable
 fun MapScreen(state: AppState) {
     val m = remember(state.selectedId, state.processing) { state.store.get(state.selectedId ?: -1) }
     Column(Modifier.fillMaxSize()) {
@@ -884,6 +909,7 @@ fun MapScreen(state: AppState) {
     }
 }
 
+@Composable
 fun DetailWithMap(state: AppState) {
     Box(Modifier.fillMaxSize()) {
         DetailScreenV2(state)
@@ -894,6 +920,7 @@ fun DetailWithMap(state: AppState) {
 }
 
 
+@Composable
 fun MindMapView(m: Meeting) {
     val topics = m.topics(); val acts = m.actions().take(6); val decs = m.decisions().take(4)
     Canvas(Modifier.fillMaxWidth().height(300.dp)) {
