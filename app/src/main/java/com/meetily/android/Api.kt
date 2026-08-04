@@ -194,7 +194,7 @@ object ApiDiar {
                 val segs = o.optJSONArray("segments")
                 if (segs == null || segs.length() == 0) return Result.success(o.optString("text", ""))
                 val ranges = (0 until segs.length()).map { i -> segs.getJSONObject(i).optDouble("start", 0.0) to segs.getJSONObject(i).optDouble("end", 0.0) }
-                val spk = Diarizer.speakersFor(file, ranges)
+                val spk = Diarizer2.speakersFor(file, ranges)
                 val sb = StringBuilder()
                 for (i in 0 until segs.length()) {
                     val s = segs.getJSONObject(i)
