@@ -16,7 +16,7 @@ object Diarizer2 {
             for (f in norm) {
                 var best = -1; var bd = 1e9
                 for (i in cents.indices) { val d = dist(f, cents[i]); if (d < bd) { bd = d; best = i } }
-                if (best >= 0 && bd < 0.9) out.add(best) else { cents.add(f); out.add(cents.size - 1) }
+                if (best >= 0 && bd < 0.6) out.add(best) else { cents.add(f); out.add(cents.size - 1) }
             }
             out
         } catch (e: Exception) { List(segs.size) { 0 } }
