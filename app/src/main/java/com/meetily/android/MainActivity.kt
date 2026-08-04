@@ -1207,7 +1207,7 @@ fun PersonsScreen(state: AppState) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 8.dp)) {
             if (groups.isEmpty()) Text("Henuz veri yok. Kayit yapip diarization'i dene.", color = S.dim, fontSize = 12.sp)
             groups.forEach { (spk, list) ->
-                val col = SPK_COLORS[spk % SPK_COLORS.size]
+                val cols = listOf(S.purple, S.blue, S.green, S.amber, S.red); val col = cols[spk % cols.size]
                 val words = list.sumOf { it.text.split(" ").size }
                 val commits = list.filter { isCommitment(it.text) }
                 Column(Modifier.fillMaxWidth().padding(vertical = 6.dp).clip(RoundedCornerShape(14.dp)).background(S.panel).border(1.dp, S.line, RoundedCornerShape(14.dp)).padding(12.dp)) {
