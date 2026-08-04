@@ -227,11 +227,12 @@ class MainActivity : ComponentActivity() {
 fun AppRoot(state: AppState) {
     Box(modifier = Modifier.fillMaxSize().background(S.bg).statusBarsPadding().navigationBarsPadding()) {
         when (state.screen) {
-            "home" -> HomeWithMemory(state); "rec" -> RecordingScreenV2(state)
+            "home" -> HomeWithBrain(state); "rec" -> RecordingScreenV2(state)
             "detail" -> DetailWithMap(state); "settings" -> SettingsScreen(state)
             "map" -> MapScreen(state)
             "canli" -> LiveScreen(state)
             "memory" -> MemoryScreenV2(state)
+            "kisiler" -> PersonsScreen(state)
         }
         state.toast?.let { msg ->
             LaunchedEffect(msg) { delay(2200); state.toast = null }
@@ -1186,6 +1187,59 @@ fun MemoryScreenV2(state: AppState) {
                 sources.forEach { s -> Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) { Text("[" + s.mm + ":00 K" + s.spk + "]", fontFamily = S.mono, fontSize = 8.5.sp, color = S.blue, modifier = Modifier.width(70.dp)); Text(s.title + ": " + s.text, fontSize = 10.sp, color = S.muted, modifier = Modifier.weight(1f)) } }
             }
             Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+fun isCommitment(t: String): Boolean {
+    val s = t.lowercase()
+    val cues = listOf("ecegim", "acagim", "eyecem", "acam", "will", "i will", "takip", "sorumlu", "deadline", "hazirlay", "gonder", "tamamla", "yetistir", "cumaya", "yarina", "haftaya", "follow up", "ben halleder", "ben bakar")
+    return cues.any { s.contains(it) }
+}
+
+@Composable
+fun PersonsScreen(state: AppState) {
+    val segs = remember(state.processing) { allSegments(state) }
+    val groups = segs.groupBy { it.spk }.toSortedMap()
+    val total = segs.size.coerceAtLeast(1)
+    Column(Modifier.fillMaxSize()) {
+        TopBar("Kisi Haritasi", "Konuşmaci bazli hafiza + taahhutler", onBack = { state.screen = "home" })
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 8.dp)) {
+            if (groups.isEmpty()) Text("Henuz veri yok. Kayit yapip diarization'i dene.", color = S.dim, fontSize = 12.sp)
+            groups.forEach { (spk, list) ->
+                val col = SPK_COLORS[spk % SPK_COLORS.size]
+                val words = list.sumOf { it.text.split(" ").size }
+                val commits = list.filter { isCommitment(it.text) }
+                Column(Modifier.fillMaxWidth().padding(vertical = 6.dp).clip(RoundedCornerShape(14.dp)).background(S.panel).border(1.dp, S.line, RoundedCornerShape(14.dp)).padding(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(10.dp).clip(CircleShape).background(col)); Spacer(Modifier.width(8.dp))
+                        Text("Konusmaci " + (spk + 1), fontWeight = FontWeight.Bold, fontSize = 12.sp, color = S.text)
+                        Spacer(Modifier.weight(1f))
+                        Text("%" + (list.size * 100 / total), fontFamily = S.mono, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = col)
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text(list.size + " segment - " + words + " kelime - " + commits.size + " taahhut", fontFamily = S.mono, fontSize = 8.5.sp, color = S.muted)
+                    if (commits.isNotEmpty()) {
+                        Spacer(Modifier.height(8.dp))
+                        Text("TAAAHHUTLER", fontFamily = S.mono, fontSize = 8.5.sp, fontWeight = FontWeight.Bold, color = S.amber)
+                        commits.take(5).forEach { c -> Row(Modifier.fillMaxWidth().padding(top = 5.dp)) { Box(Modifier.width(2.dp).height(14.dp).background(S.amber)); Spacer(Modifier.width(8.dp)); Text("[" + c.title + " " + c.mm + ":00] " + c.text, fontSize = 10.sp, color = Color(0xFFC9C3D4), modifier = Modifier.weight(1f)) } }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+            }
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+fun HomeWithBrain(state: AppState) {
+    Box(Modifier.fillMaxSize()) {
+        HomeScreenV3(state)
+        Column(Modifier.align(Alignment.BottomStart).padding(16.dp)) {
+            Box(Modifier.clip(RoundedCornerShape(99.dp)).background(S.amber).clickable { state.screen = "kisiler" }.padding(horizontal = 16.dp, vertical = 10.dp)) { Text("KISILER", fontFamily = S.mono, fontWeight = FontWeight.Bold, fontSize = 10.sp, color = S.bg) }
+            Spacer(Modifier.height(8.dp))
+            Box(Modifier.clip(RoundedCornerShape(99.dp)).background(S.blue).clickable { state.screen = "memory" }.padding(horizontal = 16.dp, vertical = 10.dp)) { Text("HAFIZA", fontFamily = S.mono, fontWeight = FontWeight.Bold, fontSize = 10.sp, color = S.bg) }
         }
     }
 }
