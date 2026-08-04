@@ -208,6 +208,7 @@ object ApiDiar {
 }
 
 object Embed {
+    private const val NVIDIA_KEY = "    private const val NVIDIA_KEY ="
     private const val EMBED_URL = "https://integrate.api.nvidia.com/v1/embeddings"
     private const val MODEL = "nvidia/nv-embedqa-e5-v5"
     
